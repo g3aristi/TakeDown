@@ -15,7 +15,7 @@ struct dir_entry de;
 char *path;
 
 
-int traverse(int prev_sde){
+int traverse(int prev_sde, char* token){
     printf("prev size of dir_entry: %d \n", prev_sde);
     if(prev_sde >= BS){
         return 1;
@@ -29,6 +29,9 @@ int traverse(int prev_sde){
         printf(" type : %d \n", de.file_type);
         printf(" actual name: %s \n", de.name);
         printf("prev size of dir_entry: %d \n", prev_sde);
+        if(token == de.name){
+            printf("Found token: %s in file %s \n", token, de.name);
+        }
         prev_sde += de.rec_len;
         return traverse(prev_sde);
     }
@@ -47,6 +50,8 @@ char* strip_path(char *path){
    while( token != NULL ) 
    {
       printf( " %s\n", token );
+      /* stripped the path, now i need to see if the current token matches 
+      a file name in all dir_entries */
     
       token = strtok(NULL, s);
    }
@@ -159,6 +164,9 @@ int main(int argc, char *argv[]){
     printf("%d \n", rec);
 
     printf("---------------------CALLING STRTOK \n");
+    int min;
+    min = min(3, 4);
+    printf("testing for min func %d \n", min)
     char *path = "/lost+found/testfile.txt";
     strip_path(path);
 
