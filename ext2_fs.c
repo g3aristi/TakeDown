@@ -36,11 +36,12 @@ int traverse(int prev_sde){
 
 char* strip_path(char *path){
     printf("stripping path: %s \n", path);
+    char str[20] = path;
     char s[2] = "/";
     char *token;
    
    /* get the first token */
-   token = strtok(&path, s);
+   token = strtok(str, s);
    
    /* walk through other tokens */
    while( token != NULL ) 
