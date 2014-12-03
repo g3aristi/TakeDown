@@ -160,15 +160,15 @@ int main(int argc, char *argv[]){
 
     printf("---------------------CALL TO TRAVERSING \n");
     int rec;
-    rec = traverse(0);
-    printf("%d \n", rec);
+    //rec = traverse(0, "lost+found");
+    //printf("%d \n", rec);
 
     printf("---------------------CALLING STRTOK \n");
     int len;
     len = strlen("lost+found/testfile.txt");
     printf("testing len function %d \n", len);
     char *path = "/lost+found/testfile.txt";
-    strip_path(path);
+    //strip_path(path);
 
 
     return(0);
