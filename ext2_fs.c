@@ -33,7 +33,7 @@ int traverse(int prev_sde, char* token){
             printf("Found token: %s in file %s \n", token, de.name);
         }
         prev_sde += de.rec_len;
-        return traverse(prev_sde);
+        return traverse(prev_sde, token);
     }
 }
 
@@ -164,9 +164,9 @@ int main(int argc, char *argv[]){
     printf("%d \n", rec);
 
     printf("---------------------CALLING STRTOK \n");
-    int min;
-    min = min(3, 4);
-    printf("testing for min func %d \n", min)
+    int len;
+    len = strlen("lost+found/testfile.txt");
+    printf("testing len function %d \n", len);
     char *path = "/lost+found/testfile.txt";
     strip_path(path);
 
