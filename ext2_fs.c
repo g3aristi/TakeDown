@@ -36,7 +36,7 @@ int traverse(int prev_sde){
 
 char* strip_path(char *path){
     printf("stripping path: %s \n", path);
-    char str[20] = &path;
+    char str[20] = "/lost+found/testfile.txt";
     char s[2] = "/";
     char *token;
    
