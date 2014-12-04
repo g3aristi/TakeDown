@@ -37,7 +37,7 @@ int traverse(int prev_sde, char* token){
         if(len_token != len_de_name){
             /*Check the res of the dir_entryies*/
         } else {
-            if (strntoken == de.name){
+            if (token == de.name){
                 printf("Found token: %s in file %s \n", token, de.name);
             }
         }
@@ -48,7 +48,7 @@ int traverse(int prev_sde, char* token){
 
 char* strip_path(char *path){
     printf("stripping path: %s \n", path);
-    char str[20] = "/lost+found/testfile.txt";
+    //char str[20] = "/lost+found/testfile.txt";
     char s[2] = "/";
     char *token;
    
