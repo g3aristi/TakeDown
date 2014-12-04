@@ -29,8 +29,17 @@ int traverse(int prev_sde, char* token){
         printf(" type : %d \n", de.file_type);
         printf(" actual name: %s \n", de.name);
         printf("prev size of dir_entry: %d \n", prev_sde);
-        if(token == de.name){
-            printf("Found token: %s in file %s \n", token, de.name);
+        int len_token;
+        len_token = strlen(token);
+        int len_de_name;
+        len_de_name = strlen(de.name);
+        /*If the names are not equal in length then move on!*/
+        if(len_token != len_de_name){
+            /*Check the res of the dir_entryies*/
+        } else {
+            if (strntoken == de.name){
+                printf("Found token: %s in file %s \n", token, de.name);
+            }
         }
         prev_sde += de.rec_len;
         return traverse(prev_sde, token);
@@ -167,6 +176,12 @@ int main(int argc, char *argv[]){
     int len;
     len = strlen("lost+found/testfile.txt");
     printf("testing len function %d \n", len);
+
+    int ret, ret2;
+    ret = strncmp("hello", "hello", 5);
+    ret2 = strncmp("hella", "hello", 5);
+    printf("string comparison to fig if they are equal %d \n", ret);
+    printf("string comparison to fig if they are NOT equal %d \n", ret2);
     char *path = "/lost+found/testfile.txt";
     //strip_path(path);
 
