@@ -53,7 +53,7 @@ char* strip_path(char *path){
     char *token;
    
    /* get the first token */
-   token = strtok(str, s);
+   //token = strtok(str, s);
    
    /* walk through other tokens */
    while( token != NULL ) 
