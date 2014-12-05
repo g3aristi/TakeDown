@@ -39,6 +39,7 @@ int strip_path(char *img, char *path);
 int find_inode(char *img, char *token, int block_num);
 void print_ibm(struct inode_bitmap ibm);
 void print_dbm(struct data_bitmap ibm);
+int find_inode(char *img, char *token, int block_num);
 
 struct super_block {
 	__u32	s_inodes_count;		/* Inodes count */

@@ -15,8 +15,6 @@ char inode_bitmap[16];
 char data_bitmap[16];
 char *path;
 
-
-
 int get_data_from_inode(char *img, int inode_num){
 
     if((file = fopen(img, "r")) == NULL){
@@ -58,7 +56,6 @@ int find_inode(char *img, char *token, int block_num){
         printf(" type : %d \n", de.file_type);
         printf(" actual name: %s \n", de.name);
         if((strncmp(tk_cp, de.name, strlen(token))) == 0){
-            printf("FOUND THE TOKEN \n");
             break;
         }
 
@@ -72,7 +69,7 @@ int find_inode(char *img, char *token, int block_num){
 
 /* returns the location of the data for this final path */
 int strip_path(char *img, char *path){
-    int path_len, loc_inode, next_inode, next_data_block, next_inode2;
+    int path_len, loc_inode, next_inode, next_data_block;
     path_len = strlen(path);
     char path_cpy[path_len];
     strcpy(path_cpy, path);
@@ -85,7 +82,6 @@ int strip_path(char *img, char *path){
 
    int i= 0;
    while(token != NULL) {
-        printf("TOKEN %s \n", token);
         /*if is the first token, then i should start and the root*/
         if(i == 0){
             loc_inode = find_inode(img, token, LOC_ROOT);
@@ -107,11 +103,7 @@ int strip_path(char *img, char *path){
 
 
 void print_ibm(struct inode_bitmap ibm){  
-    // __u64 bitmap1; 
-    // __u64 bitmap2;
-    // fread(&bitmap1, 1, sizeof(__u64), fp); 
-    // fread(&bitmap2, 1, sizeof(__u64), fp);
-    printf("This is the inode bit map \n");
+    printf("This is the inode bit map %d \n", ibm.inodes);
     int i;
     for(i = 0; i < 16; i++){ 
         if((i % 8) == 0) 
@@ -119,17 +111,31 @@ void print_ibm(struct inode_bitmap ibm){
         if (ibm.inodes & 1) 
             printf("1"); 
         else 
-            printf("0"); 
-    }
-    ibm.inodes >>= 1; 
+            printf("0");
+
+        ibm.inodes >>= 1; 
+    } 
     printf("\n");
 }
 
+int find_free_inode(struct inode_bitmap ibm){
+    struct inode_bitmap ibm_cp;
+    ibm_cp = ibm;
+    //print_ibm(ibm);
+    int i;
+    for(i = 0; i < 16; i++){ 
+        if (ibm_cp.inodes & 1){
+
+        } else {
+            return i;
+        }
+        ibm_cp.inodes >>= 1; 
+    } 
+    printf("\n");    
+    return -1;
+}
+
 void print_dbm(struct data_bitmap dbm){  
-    // __u64 bitmap1; 
-    // __u64 bitmap2;
-    // fread(&bitmap1, 1, sizeof(__u64), fp); 
-    // fread(&bitmap2, 1, sizeof(__u64), fp);
     int i;
     printf("This is the data1 bit map \n");
     /* first 64 bits since the struct has that much space*/
@@ -140,22 +146,24 @@ void print_dbm(struct data_bitmap dbm){
             printf("1"); 
         else 
             printf("0"); 
-    }
-    dbm.data1 >>= 1; 
+
+        dbm.data1 >>= 1;
+    } 
     printf("\n");
 
     /* the remaining 64 bits since the struct has that much space*/
     printf("This is the data2 bit map \n");
     int j;
-    for(j = 64; j >= 128; i++){ 
+    for(j = 0; j  < 64; j++){ 
         if((j % 8) == 0) 
             printf(" "); 
         if (dbm.data2 & 1) 
             printf("1"); 
         else 
             printf("0"); 
-    }
-    dbm.data2 >>= 1; 
+
+        dbm.data2 >>= 1;
+    } 
     printf("\n");
 }
 //     if(n == 128){
