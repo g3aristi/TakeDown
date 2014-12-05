@@ -1,6 +1,15 @@
 #define BLOCK_SIZE 1024
 #define EXT2_NAME_LEN 255
 
+
+#define LOC_I_BITMAP 4 /*location of inode bitmap*/
+#define LOC_D_BITMAP 3	/*location of data bitmap*/
+#define LOC_I_TABLE 5	/*location of inode table*/
+#define LOC_ROOT 7 /*location of the root block*/
+#define INODE_SIZE 128 /*size of an inode */
+#define LEN_INODE_BITMAP 16 /* length of the inode bitmap*/
+#define LEN_DATA_BITMAP 128 /*length of the data bitmap */
+
 #define EXT2_NDIR_BLOCKS		12
 #define EXT2_IND_BLOCK			EXT2_NDIR_BLOCKS
 #define EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
@@ -15,6 +24,21 @@ typedef unsigned int __u32;
 typedef unsigned long __u64;
 
 
+struct inode_bitmap {
+	__u16	inodes;
+};
+
+struct data_bitmap{
+	__u64 data1;
+    __u64 data2;
+};
+
+
+
+int strip_path(char *img, char *path);
+int find_inode(char *img, char *token, int block_num);
+void print_ibm(struct inode_bitmap ibm);
+void print_dbm(struct data_bitmap ibm);
 
 struct super_block {
 	__u32	s_inodes_count;		/* Inodes count */
