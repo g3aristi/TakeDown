@@ -15,7 +15,31 @@ char inode_bitmap[16];
 char data_bitmap[16];
 char *path;
 
+/*Return where there is enough space to write a new dir_entry for the file to be copy */
+int find_free_entry(char *img, int block_num){
+    printf("FINDING A FREE dir_entry \n");
+
+    if((file = fopen(img, "r")) == NULL){
+        perror("Error opening the image in finding a free entry: \n");
+        exit(1);
+    }
+
+    int des = 0; /* directory entry size */
+    while(des < BLOCK_SIZE){
+        fseek(file, BLOCK_SIZE*block_num+des, SEEK_SET);
+        fread(&de, 1, sizeof(struct dir_entry), file);
+        printf(" inode data located: %d \n", de.inode);
+        printf(" dir_entry length: %d \n", de.rec_len);
+        printf(" type : %d \n", de.file_type);
+        printf(" actual name: %s \n", de.name);
+
+        des += de.rec_len;
+    }
+    return de.inode;
+}
+
 int get_data_from_inode(char *img, int inode_num){
+    inode_num --;
 
     if((file = fopen(img, "r")) == NULL){
         perror("Error opening the image: \n");
@@ -24,7 +48,7 @@ int get_data_from_inode(char *img, int inode_num){
 
     fseek(file, BLOCK_SIZE*LOC_I_TABLE+INODE_SIZE*inode_num, SEEK_SET);
     fread(&in, 1, sizeof(struct inode), file);
-    //printf(" inode data located: %d \n", in.i_block[0]);
+
     /* should loop through all the data block pointers */
     return in.i_block[0];
 
@@ -62,7 +86,7 @@ int find_inode(char *img, char *token, int block_num){
         size += de.rec_len;
 
     }
-
+    printf("this is the inode that im found %d \n", de.inode);
     return de.inode;
 
 }
@@ -103,7 +127,6 @@ int strip_path(char *img, char *path){
 
 
 void print_ibm(struct inode_bitmap ibm){  
-    printf("This is the inode bit map %d \n", ibm.inodes);
     int i;
     for(i = 0; i < 16; i++){ 
         if((i % 8) == 0) 
@@ -119,16 +142,14 @@ void print_ibm(struct inode_bitmap ibm){
 }
 
 int find_free_inode(struct inode_bitmap ibm){
+
     struct inode_bitmap ibm_cp;
     ibm_cp = ibm;
     //print_ibm(ibm);
     int i;
     for(i = 0; i < 16; i++){ 
-        if (ibm_cp.inodes & 1){
-
-        } else {
+        if (!(ibm_cp.inodes & 1))
             return i;
-        }
         ibm_cp.inodes >>= 1; 
     } 
     printf("\n");    
@@ -166,6 +187,58 @@ void print_dbm(struct data_bitmap dbm){
     } 
     printf("\n");
 }
+
+int free_data_inode(struct data_bitmap dbm){  
+    struct data_bitmap dbm_cp;
+    dbm_cp = dbm;
+
+    int i;
+    /* first 64 bits since the struct has that much space*/
+    for(i = 0; i < 64; i++) { 
+        if (!(dbm_cp.data1 & 1))
+            return i;
+        dbm_cp.data1 >>= 1;
+    } 
+    printf("\n");
+
+    /* the remaining 64 bits since the struct has that much space*/
+    int j;
+    for(j = 0; j  < 64; j++){ 
+        if (!(dbm_cp.data2 & 1))
+            return j;
+        dbm_cp.data2 >>= 1;
+    } 
+    printf("\n");
+
+    return -1;
+}
+
+char *strip_name(char *src_path){
+    int path_len;
+    path_len = strlen(src_path);
+    char path_cp[path_len];
+    strcpy(path_cp, src_path);
+    char s[2] = "/";
+    char *token;
+    char *prev_token;
+   
+   /* get the first token */
+   token = strtok(path_cp, s); 
+
+   while(token != NULL) {
+        strcpy(prev_token, token);
+        token = strtok(NULL, s);
+        if(token == 0){
+            printf("RETURN FILE NAME: %s \n", prev_token);
+            return prev_token;
+        }
+    }
+    return src_path;
+}
+
+
+
+
 //     if(n == 128){
 //         for(i = 0; i < n; i++){ 
 //             if((i % 8) == 0) 
@@ -245,134 +318,4 @@ void print_dbm(struct data_bitmap dbm){
 //         prev_sde += de.rec_len;
 //         return traverse(prev_sde, token);
 //     }
-// }
-
-// int main(int argc, char *argv[]){
-
-//     file = fopen("onedirectory.img", "r");
-//     /*reconstructiong the super block*/
-//     fseek(file, BS, SEEK_SET);
-//     fread(&sb, 1, sizeof(struct super_block), file);
-//     printf("------------------------------- SUPER BLOCK----------------------- \n");
-//     printf(" Inodes count %d \n", sb.s_inodes_count);
-//     printf(" Blocks count %d \n", sb.s_blocks_count);
-//     printf(" Free blocks count %d \n", sb.s_free_blocks_count);
-//     printf(" Free inodes count %d \n", sb.s_free_inodes_count);
-
-//     /* reconstructing the group descriptor, which is at block #2 */
-//     fseek(file, BS*2, SEEK_SET);
-//     fread(&gd, 1, sizeof(struct group_desc), file);
-//     printf("------------------------------- GROUP DESCRIPTOR------------------ \n");
-//     printf("Blocks bitmap block  %d \n", gd.bg_block_bitmap);
-//     printf("Inodes bitmap block  %d \n", gd.bg_inode_bitmap);
-//     printf("Inodes table block   %d \n", gd.bg_inode_table);
-//     printf("Free blocks count  %d \n", gd.bg_free_blocks_count);
-//     printf("Free inodes count  %d \n", gd.bg_free_inodes_count);
-//     printf("Directories count %d \n", gd.bg_used_dirs_count);
-
-//     /* reconstructing the Inode bitmap, which is at block #4*/
-//     printf("------------------------------- INODE BITMAP ------------------ \n");
-//     int imap_location;
-//     imap_location = gd.bg_inode_bitmap;
-//     fseek(file, BS*imap_location, SEEK_SET);
-//     fread(&inode_bitmap, 1, sizeof(char)*16, file);
-//     printf("inode bitmap: %s \n", inode_bitmap);
-
-//     /* reconstructing the data bitmap, which is at block #3*/
-//     printf("------------------------------- DATA BITMAP ------------------ \n");
-//     int dmap_location, node_count;
-//     dmap_location = gd.bg_block_bitmap;
-//     node_count = sb.s_inodes_count;
-//     fseek(file, BS*dmap_location, SEEK_SET);
-//     fread(&data_bitmap, 1, sizeof(char)*node_count, file);
-//     printf(" data bitmap: %s \n", data_bitmap);
-
-//     printf("------------------------------- INODE ------------------ \n");
-//     /* Rescontruct the inode table, which is at block#5. This will lead me to root */
-//     int itable;
-//     itable = gd.bg_inode_table;
-//     fseek(file, BS*itable + 128, SEEK_SET);
-//     fread(&in, 1, sizeof(struct inode), file);
-//     /*since we know from super block that there are 16 inodes*/
-//     printf("Inode data block first pointer to a block %d \n", in.i_block[0]); /* Pointers to blocks */
-//     printf("Inode data block ptr 2 %d \n", in.i_block[1]);
-//     printf("Inode data block ptr 3 %d \n", in.i_block[2]);
-//     printf("Inode data block ptr 4 %d \n", in.i_block[3]);
-//     printf("Inode data block ptr 5  %d \n", in.i_block[4]);
-
-//     printf("------------------------------- ROOT ------------------ \n");
-//     /*Reconstructing root*/
-//     int root;
-//     root = in.i_block[0];
-//     fseek(file, BS*root, SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf("read the dir_entry for root \n");
-//     printf("roots inode data located: %d \n", de.inode);
-//     printf("roots dir_entry length: %d \n", de.rec_len);
-//     printf("roots type : %d \n", de.file_type);
-//     printf("roots actual name: %s \n", de.name);
-
-//     printf("------------------------------- NEXT ENTRY AFTER ROOT ------------------ \n");
-//     /*get the size of the previous directory entry*/
-//     int prev_sde = de.rec_len;
-//     fseek(file, (BS*7)+prev_sde, SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf(" inode data located: %d \n", de.inode);
-//     printf(" dir_entry length: %d \n", de.rec_len);
-//     printf(" type : %d \n", de.file_type);
-//     printf(" actual name: %s \n", de.name);
-
-//     printf("------------------------------- NEXT ENTRY AFTER 2 ENTRY------------------ \n");
-//     /*get the size of the previous directory entry*/
-//     int prev_sde2 = prev_sde+de.rec_len;
-//     printf("size of fist entry + second entry %d \n", prev_sde2);
-//     fseek(file, (BS*7)+prev_sde2, SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf(" inode data located: %d \n", de.inode);
-//     printf(" dir_entry length: %d \n", de.rec_len);
-//     printf(" type : %d \n", de.file_type);
-//     printf(" actual name: %s \n", de.name);
-
-//     printf("------------------------------- NEXT ENTRY AFTER 3 ENTRY------------------ \n");
-//     /*get the size of the previous directory entry*/
-//     int prev_sde3 = prev_sde2+de.rec_len;
-//     fseek(file, (BS*7)+prev_sde3, SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf(" inode data located: %d \n", de.inode);
-//     printf(" dir_entry length: %d \n", de.rec_len);
-//     printf(" type : %d \n", de.file_type);
-//     printf(" actual name: %s \n", de.name);
-//     printf("------------------------------- GOING INSIDE TESTDIR ------------------ \n");
-//     fseek(file, (BS*de.inode), SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf(" inode data located: %d \n", de.inode);
-//     printf(" dir_entry length: %d \n", de.rec_len);
-//     printf(" type : %d \n", de.file_type);
-//     printf(" actual name: %s \n", de.name);
-
-//     printf("------------------------------- BLOCK 21------------------ \n");
-//     /*get the size of the previous directory entry*/
-//     fseek(file, (BS*21), SEEK_SET);
-//     fread(&de, 1, sizeof(struct dir_entry), file);
-//     printf(" inode data located: %d \n", de.inode);
-//     printf(" dir_entry length: %d \n", de.rec_len);
-//     printf(" type : %d \n", de.file_type);
-//     printf(" actual name: %s \n", de.name);
-
-
-//     printf("---------------------CALL TO TRAVERSING \n");
-//     //int rec;
-//     //rec = traverse(0, "lost+found");
-//     //printf("%d \n", rec);
-
-//     printf("---------------------CALLING STRTOK \n");
-//     int len;
-//     len = strlen("lost+found/testfile.txt");
-//     printf("testing len function %d \n", len);
-
-//     char *path = "/lost+found";
-//     strip_path(path);
-
-
-//     return(0);
 // }

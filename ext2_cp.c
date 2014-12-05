@@ -9,6 +9,7 @@ return the appropriate error.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "ext2_fs.h"
 
 FILE *img;
@@ -40,26 +41,75 @@ int main(int argc, char *argv[]){
     printf("location of the path files node is at: %d \n", last_dir);
 
      /*find a free inode */
-    fseek(img, BLOCK_SIZE*4, SEEK_SET);
+    fseek(img, BLOCK_SIZE*LOC_I_BITMAP, SEEK_SET);
     fread(&ibm, 1, sizeof(struct inode_bitmap), img);
     print_ibm(ibm);
     int free_inode;
     free_inode = find_free_inode(ibm);
-    printf(" ______________index of the inode %d \n", free_inode);
+    printf(" ####################  index of the free inode %d \n", free_inode);
 
      /* find a free data block form the data bitmap*/
-    fseek(img, BLOCK_SIZE*3, SEEK_SET);
+    fseek(img, BLOCK_SIZE*LOC_D_BITMAP, SEEK_SET);
     fread(&dbm, 1, sizeof(struct data_bitmap), img);
     print_dbm(dbm);
+    int fdi;
+    fdi = free_data_inode(dbm);
+    printf("^^^^^^^^^^^^^^^^^^^^^ free data inode %d \n", fdi);
 
-     /*now tha i have the data block where this dir starts 
+     /* now that i have the data block where this dir starts 
      reading its dir_entries and file space where i can write 
      the src file, check all dir_entries */
 
-     /* make a struct dir_entry */
+     /* first fine the size of the file, so we know when we are done reading */
+    char *src_path;
+    src_path = argv[2];
+    struct stat st;
+    int size;
 
-     /*write the content of src to the disck image */
 
-     /* NOE REALLY CHANGE THE BITMAPS update the inode bitmap and the data bitmap */
+    stat(src_path, &st);
+    size = st.st_size;
+    printf("src file size is using stat %d \n", size);
+
+    char *name;
+    name = strip_name(argv[2]);
+    printf("this is the file name that we are trying to copy %s \n", name);
+
+
+    /* make a struct dir_entry */
+    struct dir_entry new_dir_entry;
+    new_dir_entry.inode = free_inode;
+    new_dir_entry.rec_len = 8+strlen(name);
+    new_dir_entry.name_len = strlen(name);
+    new_dir_entry.file_type = 1; /* IT should always be a file */ 
+    strcpy(new_dir_entry.name, name);
+
+    printf(" inode data located: %d \n", new_dir_entry.inode);
+    printf(" dir_entry length: %d \n", new_dir_entry.rec_len);
+    printf(" type : %d \n", new_dir_entry.file_type);
+    printf(" actual name: %s \n", new_dir_entry.name);
+
+    /* find the data block of the dir inode of the destination dir */
+    int data_block;
+    data_block = get_data_from_inode(argv[1], last_dir);
+    printf("data block of inode %d, is at %d \n", last_dir, data_block);
+
+    /* write the new dir_entry into the destination dir in one of its dir_entries */
+    fseek(img, BLOCK_SIZE*data_block, SEEK_SET);
+    fread(&de, 1, sizeof(struct dir_entry), img);
+    int free_entry;
+    free_entry = find_free_entry(argv[1], data_block);
+    printf("this is where the there is enough space %d \n", free_entry);
+
+    /*check if the dir entry ca be split to get the new dir entry*/
+
+
+    /* with the free inode link it to the free data block */
+
+    /*write the content of src to the disck image */
+
+
+
+    /* NOE REALLY CHANGE THE BITMAPS update the inode bitmap and the data bitmap */
     return(0);
 }

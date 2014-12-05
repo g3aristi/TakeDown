@@ -1,3 +1,5 @@
+./ext2cp ./onedirectory.img ./gil2.txt /testdirectory/testf
+
     /*go to lockation of root */
     printf("------------------------------- ROOT ------------------ \n");
     fseek(img, BLOCK_SIZE*7, SEEK_SET);
