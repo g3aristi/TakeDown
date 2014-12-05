@@ -15,8 +15,9 @@ char inode_bitmap[16];
 char data_bitmap[16];
 char *path;
 
-/*Return where there is enough space to write a new dir_entry for the file to be copy */
-int find_free_entry(char *img, int block_num){
+
+/*Return -1 if the new dir_entry was written to the cur dir_entry */
+int add_free_entry(char *img, int block_num, struct dir_entry de){
     printf("FINDING A FREE dir_entry \n");
 
     if((file = fopen(img, "r")) == NULL){
@@ -33,9 +34,36 @@ int find_free_entry(char *img, int block_num){
         printf(" type : %d \n", de.file_type);
         printf(" actual name: %s \n", de.name);
 
+        if((de.name_len+8 < de.rec_len) && (des + de.rec_len == 1024)){
+            de.rec_len = de.name_len+8;
+            printf("THIS AFTER CHANGES-------------- \n");
+            printf("the actual dir_entry size is %d \n", de.rec_len);
+            printf(" inode data located: %d \n", de.inode);
+            printf(" dir_entry length: %d \n", de.rec_len);
+            printf(" type : %d \n", de.file_type);
+            printf(" actual name: %s \n", de.name);
+
+            /* done spliting now check if there is still enough space, and */
+            fseek(file, BLOCK_SIZE*block_num+des+de.rec_len, SEEK_SET);
+
+
+
+            /* SHOULD ADD PADDING */
+            fwrite(&de, 1, sizeof(struct dir_entry), file);
+            fseek(file, BLOCK_SIZE*block_num+des+de.rec_len, SEEK_SET);
+            fread(&de, 1, sizeof(struct dir_entry), file);
+            printf("WROTE TO THE NEW DIR ENTRY :::::::::::)))))))))))))))))  \n");
+            printf("the actual dir_entry size is %d \n", de.rec_len);
+            printf(" inode data located: %d \n", de.inode);
+            printf(" dir_entry length: %d \n", de.rec_len);
+            printf(" type : %d \n", de.file_type);
+            printf(" actual name: %s \n", de.name);
+            return 1;
+        }
+
         des += de.rec_len;
     }
-    return de.inode;
+    return -1;
 }
 
 int get_data_from_inode(char *img, int inode_num){

@@ -84,6 +84,7 @@ int main(int argc, char *argv[]){
     new_dir_entry.file_type = 1; /* IT should always be a file */ 
     strcpy(new_dir_entry.name, name);
 
+    printf("$$$$$$$$$$$$ TESTING THE NEW DIR ENTRY $$$$$$$$$$$$$$$$$$$$$$$$$$$$");
     printf(" inode data located: %d \n", new_dir_entry.inode);
     printf(" dir_entry length: %d \n", new_dir_entry.rec_len);
     printf(" type : %d \n", new_dir_entry.file_type);
@@ -92,23 +93,17 @@ int main(int argc, char *argv[]){
     /* find the data block of the dir inode of the destination dir */
     int data_block;
     data_block = get_data_from_inode(argv[1], last_dir);
-    printf("data block of inode %d, is at %d \n", last_dir, data_block);
 
     /* write the new dir_entry into the destination dir in one of its dir_entries */
     fseek(img, BLOCK_SIZE*data_block, SEEK_SET);
     fread(&de, 1, sizeof(struct dir_entry), img);
-    int free_entry;
-    free_entry = find_free_entry(argv[1], data_block);
-    printf("this is where the there is enough space %d \n", free_entry);
-
-    /*check if the dir entry ca be split to get the new dir entry*/
-
+    int wrote_dir;
+    wrote_dir = add_free_entry(argv[1], data_block, new_dir_entry);
+    printf("------ wrote the dir entry %d ------- \n", wrote_dir);
 
     /* with the free inode link it to the free data block */
 
-    /*write the content of src to the disck image */
-
-
+    /* write the content of src to the disck image */
 
     /* NOE REALLY CHANGE THE BITMAPS update the inode bitmap and the data bitmap */
     return(0);

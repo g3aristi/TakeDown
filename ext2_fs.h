@@ -31,19 +31,9 @@ struct inode_bitmap {
 struct data_bitmap{
 	__u64 data1;
     __u64 data2;
-};
+}; 
 
-
-
-int strip_path(char *img, char *path);
-int find_inode(char *img, char *token, int block_num);
-void print_ibm(struct inode_bitmap ibm);
-void print_dbm(struct data_bitmap ibm);
-int find_free_inode(struct inode_bitmap ibm);
-int free_data_inode(struct data_bitmap dbm);
-int get_data_from_inode(char *img, int inode_num);
-char *strip_name(char *src_path);
-int find_free_entry(char *img, int block_num);
+/* add to a free entry */
 
 struct super_block {
 	__u32	s_inodes_count;		/* Inodes count */
@@ -175,3 +165,14 @@ struct dir_entry {
 	__u8	file_type;
 	char	name[EXT2_NAME_LEN];	/* File name */
 };
+
+
+int strip_path(char *img, char *path);
+int find_inode(char *img, char *token, int block_num);
+void print_ibm(struct inode_bitmap ibm);
+void print_dbm(struct data_bitmap ibm);
+int find_free_inode(struct inode_bitmap ibm);
+int free_data_inode(struct data_bitmap dbm);
+int get_data_from_inode(char *img, int inode_num);
+char *strip_name(char *src_path);
+int add_free_entry(char *img, int block_num, struct dir_entry de);
