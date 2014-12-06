@@ -69,3 +69,10 @@
     printf(" actual name: %s \n", de.name);
 
     printf("*************************************THIS IS THE ACTUAL NODE %d \n", de.inode);
+
+
+        printf("$$$$$$$$$$$$ TESTING THE NEW DIR ENTRY $$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+    printf(" inode data located: %d \n", new_dir_entry->inode);
+    printf(" dir_entry length: %d \n", new_dir_entry->rec_len);
+    printf(" type : %d \n", new_dir_entry->file_type);
+    printf(" actual name: %s \n", new_dir_entry->name);

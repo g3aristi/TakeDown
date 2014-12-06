@@ -7,8 +7,8 @@
 #define LOC_I_TABLE 5	/*location of inode table*/
 #define LOC_ROOT 7 /*location of the root block*/
 #define INODE_SIZE 128 /*size of an inode */
-#define LEN_INODE_BITMAP 16 /* length of the inode bitmap*/
-#define LEN_DATA_BITMAP 128 /*length of the data bitmap */
+#define LEN_INODE_BITMAP 16 /* length of the inode bitmap */
+//#define LEN_DATA_BITMAP 128 /* size of an inode */
 
 #define EXT2_NDIR_BLOCKS		12
 #define EXT2_IND_BLOCK			EXT2_NDIR_BLOCKS
@@ -175,4 +175,13 @@ int find_free_inode(struct inode_bitmap ibm);
 int free_data_inode(struct data_bitmap dbm);
 int get_data_from_inode(char *img, int inode_num);
 char *strip_name(char *src_path);
-int add_free_entry(char *img, int block_num, struct dir_entry de);
+int add_free_entry(char *img, int block_num, struct dir_entry *de);
+int write_data(char *img, char *src, int file_size, int fdb, struct inode in, 
+struct data_bitmap dbm, struct inode_bitmap ibm, int fn);
+
+
+void update_data_bitmap(struct data_bitmap dbm, int index);
+
+
+
+void update_inode_bitmap(struct inode_bitmap ibm, int index);

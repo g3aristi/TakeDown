@@ -52,9 +52,9 @@ int main(int argc, char *argv[]){
     fseek(img, BLOCK_SIZE*LOC_D_BITMAP, SEEK_SET);
     fread(&dbm, 1, sizeof(struct data_bitmap), img);
     print_dbm(dbm);
-    int fdi;
-    fdi = free_data_inode(dbm);
-    printf("^^^^^^^^^^^^^^^^^^^^^ free data inode %d \n", fdi);
+    int fdb;
+    fdb = free_data_inode(dbm) + 1; /* plus one since data blocks start at 1 */
+    printf("^^^^^^^^^^^^^^^^^^^^^ free data block %d \n", fdb); 
 
      /* now that i have the data block where this dir starts 
      reading its dir_entries and file space where i can write 
@@ -64,47 +64,70 @@ int main(int argc, char *argv[]){
     char *src_path;
     src_path = argv[2];
     struct stat st;
-    int size;
-
+    int file_size;
 
     stat(src_path, &st);
-    size = st.st_size;
-    printf("src file size is using stat %d \n", size);
-
+    file_size = st.st_size;
     char *name;
     name = strip_name(argv[2]);
-    printf("this is the file name that we are trying to copy %s \n", name);
 
 
     /* make a struct dir_entry */
-    struct dir_entry new_dir_entry;
-    new_dir_entry.inode = free_inode;
-    new_dir_entry.rec_len = 8+strlen(name);
-    new_dir_entry.name_len = strlen(name);
-    new_dir_entry.file_type = 1; /* IT should always be a file */ 
-    strcpy(new_dir_entry.name, name);
+    struct dir_entry *new_dir_entry = malloc(sizeof(struct dir_entry));
+    new_dir_entry->inode = free_inode;
+    new_dir_entry->rec_len = 8+strlen(name);
+    new_dir_entry->name_len = strlen(name);
+    new_dir_entry->file_type = 1; /* IT should always be a file */ 
+    strcpy(new_dir_entry->name, name);
 
-    printf("$$$$$$$$$$$$ TESTING THE NEW DIR ENTRY $$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-    printf(" inode data located: %d \n", new_dir_entry.inode);
-    printf(" dir_entry length: %d \n", new_dir_entry.rec_len);
-    printf(" type : %d \n", new_dir_entry.file_type);
-    printf(" actual name: %s \n", new_dir_entry.name);
 
     /* find the data block of the dir inode of the destination dir */
     int data_block;
     data_block = get_data_from_inode(argv[1], last_dir);
+    printf("this is the data_block passed in #: %d \n", data_block);
 
     /* write the new dir_entry into the destination dir in one of its dir_entries */
     fseek(img, BLOCK_SIZE*data_block, SEEK_SET);
+
+
     fread(&de, 1, sizeof(struct dir_entry), img);
-    int wrote_dir;
-    wrote_dir = add_free_entry(argv[1], data_block, new_dir_entry);
-    printf("------ wrote the dir entry %d ------- \n", wrote_dir);
 
-    /* with the free inode link it to the free data block */
+    add_free_entry(argv[1], data_block, new_dir_entry);
+    //printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ \n");
 
-    /* write the content of src to the disck image */
+
+    // /* with the free inode link it to the free data block */
+
+    fseek(img, BLOCK_SIZE*LOC_I_TABLE+INODE_SIZE*free_inode, SEEK_SET);
+    fread(&in, 1, sizeof(struct inode), img);
+    in.i_mode = 0x8777; /* this for a file */
+    in.i_size = 1024;
+    in.i_links_count = 0; 
+    in.i_uid = 0; /* Low 16 bits of Owner Uid */ 
+    in.i_atime = 0; /* Access time */ 
+    in.i_ctime = 0; /* Inode change time */ 
+    in.i_mtime = 0; /* Modification time */ 
+    in.i_dtime = 0; /* Deletion Time */ 
+    in.i_gid = 0; /* Low 16 bits of Group Id */ 
+    in.i_blocks = 6; /* Blocks count */ 
+    in.i_flags = 0; /* File flags */
+
+    /* write the content of src file to the disck image */
+    int wrote;
 
     /* NOE REALLY CHANGE THE BITMAPS update the inode bitmap and the data bitmap */
+    wrote = write_data(argv[1], argv[2], file_size, fdb, in, dbm, ibm, free_inode);
+    printf("did i write to the file????: %d \n", wrote);
+
+
+    /* I node that at some point i need to update 
+        the super block with all the changes */
+
+    /* I tryied creating dir_entries but i didnt know how to fully populate them*/
+
+    /* i did change the bit maps, but i did it wrong and 
+        it broke the rest of the functions*/
+
+    //print_dbm(dbm);
     return(0);
 }

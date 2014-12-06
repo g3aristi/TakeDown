@@ -6,7 +6,7 @@
 #define BS 1024 /*BLOCK SIZE*/
 #define FDEAR 24 /*First Directory Entry After Root*/
 
-FILE *file;
+FILE *file, *file2;
 struct dir_entry de;
 struct inode in;
 
@@ -15,53 +15,260 @@ char inode_bitmap[16];
 char data_bitmap[16];
 char *path;
 
+/* updates the inodes block pointers to the new blokcs where its data is now */
+void update_inode(char *img, int in_index, int db){
 
-/*Return -1 if the new dir_entry was written to the cur dir_entry */
-int add_free_entry(char *img, int block_num, struct dir_entry de){
-    printf("FINDING A FREE dir_entry \n");
-
-    if((file = fopen(img, "r")) == NULL){
+    int i;
+    if((file = fopen(img, "r+")) == NULL){
         perror("Error opening the image in finding a free entry: \n");
         exit(1);
     }
 
-    int des = 0; /* directory entry size */
-    while(des < BLOCK_SIZE){
-        fseek(file, BLOCK_SIZE*block_num+des, SEEK_SET);
-        fread(&de, 1, sizeof(struct dir_entry), file);
-        printf(" inode data located: %d \n", de.inode);
-        printf(" dir_entry length: %d \n", de.rec_len);
-        printf(" type : %d \n", de.file_type);
-        printf(" actual name: %s \n", de.name);
+    fseek(file, BLOCK_SIZE*LOC_D_BITMAP+INODE_SIZE*in_index, SEEK_SET);
+    fread(&in, 1, sizeof(struct inode), file);
+    for( i = 0; i < 15; i++){
+        if (         (            (in.i_block[i]  == 0)     )            ){
+            in.i_block[i] = db;
+        }
+    }
+}
 
-        if((de.name_len+8 < de.rec_len) && (des + de.rec_len == 1024)){
-            de.rec_len = de.name_len+8;
-            printf("THIS AFTER CHANGES-------------- \n");
-            printf("the actual dir_entry size is %d \n", de.rec_len);
-            printf(" inode data located: %d \n", de.inode);
-            printf(" dir_entry length: %d \n", de.rec_len);
-            printf(" type : %d \n", de.file_type);
-            printf(" actual name: %s \n", de.name);
+void print_dbm(struct data_bitmap dbm){  
+    int i;
+    printf("This is the data1 bit map \n");
+    /* first 64 bits since the struct has that much space*/
+    for(i = 0; i < 64; i++){ 
+        //printf("this is where the struct data bit is at: %d \n", );
+        if((i % 8) == 0) 
+            printf(" "); 
+        if (dbm.data1 & 1) 
+            printf("1"); 
+        else 
+            printf("0"); 
 
-            /* done spliting now check if there is still enough space, and */
-            fseek(file, BLOCK_SIZE*block_num+des+de.rec_len, SEEK_SET);
+        dbm.data1 >>= 1;
+    } 
+    printf("\n");
+    /* the remaining 64 bits since the struct has that much space*/
+    printf("This is the data2 bit map \n");
+    int j;
+    for(j = 0; j  < 64; j++){ 
+        if((j % 8) == 0) 
+            printf(" "); 
+        if (dbm.data2 & 1) 
+            printf("1"); 
+        else 
+            printf("0"); 
+
+        dbm.data2 >>= 1;
+    } 
+    printf("\n");
+}
 
 
+/* THis functions do not work properly, they change the bitmaps in the wrong way */
+// void update_inode_bitmap(struct inode_bitmap ibm, int index){
+//     int i;
+//     /* first 64 bits since the struct has that much space*/
+//     if(index < 16){
+//         for(i = 0; i < 16; i++) { 
+//             if ( i == index)
+//                 ibm.inodes |= 1<< (index-1);
+//         } 
+//     }
+// }
 
-            /* SHOULD ADD PADDING */
-            fwrite(&de, 1, sizeof(struct dir_entry), file);
-            fseek(file, BLOCK_SIZE*block_num+des+de.rec_len, SEEK_SET);
-            fread(&de, 1, sizeof(struct dir_entry), file);
-            printf("WROTE TO THE NEW DIR ENTRY :::::::::::)))))))))))))))))  \n");
-            printf("the actual dir_entry size is %d \n", de.rec_len);
-            printf(" inode data located: %d \n", de.inode);
-            printf(" dir_entry length: %d \n", de.rec_len);
-            printf(" type : %d \n", de.file_type);
-            printf(" actual name: %s \n", de.name);
-            return 1;
+
+// /* updates the data bitmap to show that a new data block is in use */
+// void update_data_bitmap(struct data_bitmap dbm, int index){
+//     int i, j;
+//     /* first 64 bits since the struct has that much space*/
+//     if(index < 64){
+//         for(i = 0; i < 64; i++) { 
+//             if ( i == index)
+//                 dbm.data1 |= 1<< (index-1);
+//         } 
+//     }
+
+//     /* the remaining 64 bits since the struct has that much space*/
+//     if(index >= 64){
+//         for(j = 0; j  < 64; j++){ 
+//             if ( i == index )
+//             dbm.data1 |= 1<< (index-1);
+//         } 
+//     } 
+// }
+
+
+int free_data_inode(struct data_bitmap dbm){  
+    struct data_bitmap dbm_cp;
+    dbm_cp = dbm;
+
+    int i;
+    /* first 64 bits since the struct has that much space*/
+    for(i = 0; i < 64; i++) { 
+        if (!(dbm.data1 & 1))
+            return i;
+        dbm_cp.data1 >>= 1;
+    } 
+    printf("\n");
+
+    /* the remaining 64 bits since the struct has that much space*/
+    int j;
+    for(j = 0; j  < 64; j++){ 
+        if (!(dbm.data2 & 1))
+            return j;
+        dbm_cp.data2 >>= 1;
+    } 
+    printf("\n");
+
+    return -1;
+}
+
+/* writes data from source to destination given the file size and the free data block.
+    returns 1 when the writting was successfull and -1 other wise */
+int write_data(char *img, char *src, int file_size, int fdb, struct inode in, 
+    struct data_bitmap dbm, struct inode_bitmap ibm, int fin){ /* free inode */
+
+    if((file = fopen(img, "r+")) == NULL){
+        perror("Error opening the image in finding a free entry: \n");
+        exit(1);
+    }
+
+    if((file2 = fopen(src, "r")) == NULL){
+        perror("Error opening the source file: \n");
+        exit(1);
+    }
+
+    if(file_size < BLOCK_SIZE){
+        /* populate the buffer */
+        char buff[file_size];
+        fseek(file2, 0, SEEK_SET);
+        fread(&buff, 1, file_size, file2);
+        fseek(file, BLOCK_SIZE*fdb, SEEK_SET);
+        fwrite(buff, 1, file_size, file);
+
+        char new_buff[file_size];
+        fseek(file, BLOCK_SIZE*fdb, SEEK_SET);
+        fread(&new_buff, 1, file_size, file);
+        return 1;
+    }
+    /* check if the file2 file needs multiple blocks */
+    int i, num_bloks_needed, remeninder;
+    int offset = 0;
+    int new_db = fdb;
+    remeninder = file_size;
+    num_bloks_needed = file_size / BLOCK_SIZE;
+    for(i = 0; i < num_bloks_needed; i++){
+
+        /* if we are passed the first block find a new block to write to */
+        /* update the inode of this the destination file */
+
+        if( i > 0 && i < num_bloks_needed){
+            new_db= free_data_inode(dbm) + 1;
+            //update_data_bitmap(dbm, new_db);
+            //print_dbm(dbm);
+
+            /* update data bitmap*/
+            //update_inode_bitmap(ibm, fin);
+
+            //update_inode(in);
+            //update_inode(img, fin, new_db);
         }
 
-        des += de.rec_len;
+        /* populate the buffer */
+        char buff[BLOCK_SIZE];
+        /* find the begining of the file */
+        fseek(file2, 0+offset, SEEK_SET);
+        fread(&buff, 1, BLOCK_SIZE, file2);
+
+        /* seek to the data block that i want to write to*/
+        fseek(file, BLOCK_SIZE*new_db, SEEK_SET);
+        fwrite(buff, 1, file_size, file);
+
+        /* checking that i actually wrote to the img */
+        char new_buff[file_size];
+        fseek(file, BLOCK_SIZE*fdb, SEEK_SET);
+        fread(&new_buff, 1, file_size, file);
+
+        /* case where we have read most of the file2 data and the next buff its not a full
+            1024 buff */
+        if(remeninder < BLOCK_SIZE){
+            char buff[remeninder];
+
+            /* offset is how much of the file i have read */
+            fseek(file2, 0+offset, SEEK_SET);
+            fread(&buff, 1, remeninder, file2);
+
+            /* seek to the data block that i want to write to*/
+            fseek(file, BLOCK_SIZE*new_db, SEEK_SET);
+            fwrite(buff, 1, remeninder, file);
+
+            /* checking that i actually wrote to the img */
+            char new_buff[remeninder];
+            fseek(file, BLOCK_SIZE*fdb, SEEK_SET);
+            fread(&new_buff, 1, remeninder, file);
+
+        }
+        remeninder -= BLOCK_SIZE;
+        offset += BLOCK_SIZE;
+    }
+
+    return -1;
+}
+
+
+/*Return -1 if the new dir_entry was written to the cur dir_entry */
+int add_free_entry(char *img, int block_num, struct dir_entry *new_de){
+
+    if(block_num == 0){
+        printf("incorrect block ++++++++++++++++++++++++++++++ \n");
+        return -1;
+    }
+
+    if((file = fopen(img, "r+")) == NULL){
+        perror("Error opening the image in finding a free entry: \n");
+        exit(1);
+    }
+    int des = 0; /* directory entry size */
+    while(des < BLOCK_SIZE){
+        /* iterating through all the dir entries in this block */
+        fseek(file, BLOCK_SIZE*block_num+des, SEEK_SET);
+        fread(&de, 1, sizeof(struct dir_entry), file);
+
+        printf("block number #: %d \n", block_num);
+
+        /* if i find available space */
+        int old_value, new_value;
+        old_value = de.rec_len;
+        if((de.name_len+8 < de.rec_len) && (des + de.rec_len == 1024)){
+
+            /* Splitting the dir entry */
+            de.rec_len = de.name_len+8; /* update the rec_len of the dir entry */
+            new_value = de.rec_len;
+
+            /* done spliting now check if there is still enough space, and 
+                write the actual dir entry */
+            if((old_value - new_value) > new_de->rec_len){
+                /* seek to the previous dir entry and now add seek to that location 
+                    plus its new rec_len */
+
+                /* adding the padding */
+                int before_padding;
+                before_padding = new_de->rec_len;
+                new_de->rec_len += old_value-new_value-before_padding;
+
+                fseek(file, BLOCK_SIZE*block_num+des+new_value, SEEK_SET);
+                /* SHOULD ADD PADDING */
+                fwrite(new_de, 1, sizeof(struct dir_entry), file);
+                /* reading that i wrote the actual new dir entry */
+                // fseek(file, BLOCK_SIZE*block_num+des+new_value, SEEK_SET);
+                // fread(&de, 1, sizeof(struct dir_entry), file);
+                return 1;
+            }
+        }
+
+    des += de.rec_len;
     }
     return -1;
 }
@@ -76,17 +283,17 @@ int get_data_from_inode(char *img, int inode_num){
 
     fseek(file, BLOCK_SIZE*LOC_I_TABLE+INODE_SIZE*inode_num, SEEK_SET);
     fread(&in, 1, sizeof(struct inode), file);
-
+printf("this is the data_block passed in #: %d \n", in.i_block[0]);
     /* should loop through all the data block pointers */
     return in.i_block[0];
 
 }
 
 
-/* return the inode of the data bloock of the the mathching file */
+/* return the inode of the data bloock of the the mathching file 
+    where block_number is a dir*/
 int find_inode(char *img, char *token, int block_num){
     //block_num --;
-    printf("----------------------current block %d \n", block_num);
     printf("block %d, has token %s \n", block_num, token);
     char tk_cp[strlen(token+1)];
     strcpy(tk_cp, token);
@@ -99,21 +306,37 @@ int find_inode(char *img, char *token, int block_num){
     int size;
     size = 0;
 
-    /*create funtion that read all dir entries*/
-    while(size < BLOCK_SIZE){
+    printf("THIS IS THE BLOCK NUMBER #: %d \n", block_num);
+        printf("this is what im looking for %s \n", token);
         fseek(file, BLOCK_SIZE*block_num+size, SEEK_SET);
         fread(&de, 1, sizeof(struct dir_entry), file);
         printf(" inode data located: %d \n", de.inode);
         printf(" dir_entry length: %d \n", de.rec_len);
         printf(" type : %d \n", de.file_type);
         printf(" actual name: %s \n", de.name);
-        if((strncmp(tk_cp, de.name, strlen(token))) == 0){
-            break;
-        }
+    /*create funtion that read all dir entries*/
 
-        size += de.rec_len;
 
-    }
+    // while(size < BLOCK_SIZE){
+    //     printf("THIS IS THE BLOCK NUMBER #: %d \n", block_num);
+    //     printf("this is what im looking for %s \n", token);
+    //     fseek(file, BLOCK_SIZE*block_num+size, SEEK_SET);
+    //     fread(&de, 1, sizeof(struct dir_entry), file);
+    //     printf(" inode data located: %d \n", de.inode);
+    //     printf(" dir_entry length: %d \n", de.rec_len);
+    //     printf(" type : %d \n", de.file_type);
+    //     printf(" actual name: %s \n", de.name);
+    //     if(size > 1){
+    //         break;
+    //     }
+
+    //     if((strncmp(tk_cp, de.name, strlen(token))) == 0){
+    //         break;
+    //     }
+
+    //     size += de.rec_len;
+
+    // }
     printf("this is the inode that im found %d \n", de.inode);
     return de.inode;
 
@@ -184,63 +407,6 @@ int find_free_inode(struct inode_bitmap ibm){
     return -1;
 }
 
-void print_dbm(struct data_bitmap dbm){  
-    int i;
-    printf("This is the data1 bit map \n");
-    /* first 64 bits since the struct has that much space*/
-    for(i = 0; i < 64; i++){ 
-        if((i % 8) == 0) 
-            printf(" "); 
-        if (dbm.data1 & 1) 
-            printf("1"); 
-        else 
-            printf("0"); 
-
-        dbm.data1 >>= 1;
-    } 
-    printf("\n");
-
-    /* the remaining 64 bits since the struct has that much space*/
-    printf("This is the data2 bit map \n");
-    int j;
-    for(j = 0; j  < 64; j++){ 
-        if((j % 8) == 0) 
-            printf(" "); 
-        if (dbm.data2 & 1) 
-            printf("1"); 
-        else 
-            printf("0"); 
-
-        dbm.data2 >>= 1;
-    } 
-    printf("\n");
-}
-
-int free_data_inode(struct data_bitmap dbm){  
-    struct data_bitmap dbm_cp;
-    dbm_cp = dbm;
-
-    int i;
-    /* first 64 bits since the struct has that much space*/
-    for(i = 0; i < 64; i++) { 
-        if (!(dbm_cp.data1 & 1))
-            return i;
-        dbm_cp.data1 >>= 1;
-    } 
-    printf("\n");
-
-    /* the remaining 64 bits since the struct has that much space*/
-    int j;
-    for(j = 0; j  < 64; j++){ 
-        if (!(dbm_cp.data2 & 1))
-            return j;
-        dbm_cp.data2 >>= 1;
-    } 
-    printf("\n");
-
-    return -1;
-}
-
 char *strip_name(char *src_path){
     int path_len;
     path_len = strlen(src_path);
@@ -252,12 +418,10 @@ char *strip_name(char *src_path){
    
    /* get the first token */
    token = strtok(path_cp, s); 
-
    while(token != NULL) {
         strcpy(prev_token, token);
         token = strtok(NULL, s);
         if(token == 0){
-            printf("RETURN FILE NAME: %s \n", prev_token);
             return prev_token;
         }
     }
